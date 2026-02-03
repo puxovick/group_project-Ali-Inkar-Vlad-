@@ -1,42 +1,34 @@
 package repository;
 
 import config.DBConnection;
-import entity.Book;
 
 import java.sql.*;
 
 public class BookRepository {
 
-    public Book findById(int id) throws Exception {
-        String sql =
-                "SELECT id, title, available_copies FROM books WHERE id = ?";
-        try (Connection con = DBConnection.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql)) {
-
-            ps.setInt(1, id);
-            ResultSet rs = ps.executeQuery();
-
-            if (rs.next()) {
-                return new Book(
-                        rs.getInt("id"),
-                        rs.getString("title"),
-                        rs.getInt("available_copies")
-                );
-            }
-        }
-        return null;
+    public void addBook(String title, String author, int categoryId) throws Exception {
+        String sql = "INSERT INTO books(title, author, category_id) VALUES (?, ?, ?)";
+        PreparedStatement ps = DBConnection.getConnection().prepareStatement(sql);
+        ps.setString(1, title);
+        ps.setString(2, author);
+        ps.setInt(3, categoryId);
+        ps.executeUpdate();
     }
 
-    public void updateAvailableCopies(int id, int value) throws Exception {
-        String sql =
-                "UPDATE books SET available_copies = ? WHERE id = ?";
-        try (Connection con = DBConnection.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql)) {
+    public void searchByCategory(String category) throws Exception {
+        String sql = """
+            SELECT b.title, b.author
+            FROM books b
+            JOIN categories c ON b.category_id = c.id
+            WHERE c.name = ?
+        """;
+        PreparedStatement ps = DBConnection.getConnection().prepareStatement(sql);
+        ps.setString(1, category);
 
-            ps.setInt(1, value);
-            ps.setInt(2, id);
-            ps.executeUpdate();
+        ResultSet rs = ps.executeQuery();
+        while (rs.next()) {
+            System.out.println(rs.getString("title") +
+                    " by " + rs.getString("author"));
         }
     }
 }
-

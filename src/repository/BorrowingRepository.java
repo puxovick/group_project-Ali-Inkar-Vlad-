@@ -1,5 +1,6 @@
 package repository;
 
+import entity.BorrowingDetails;
 import config.DBConnection;
 
 import java.sql.*;
@@ -7,51 +8,48 @@ import java.sql.*;
 public class BorrowingRepository {
 
     public void borrowBook(int userId, int bookId) throws Exception {
-        String sql =
-                "INSERT INTO borrowings(user_id, book_id, borrow_date) VALUES (?, ?, CURRENT_DATE)";
-        try (Connection con = DBConnection.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql)) {
-
-            ps.setInt(1, userId);
-            ps.setInt(2, bookId);
-            ps.executeUpdate();
-        }
+        String sql = "INSERT INTO borrowings(user_id, book_id, borrow_date) VALUES (?, ?, CURRENT_DATE)";
+        PreparedStatement ps = DBConnection.getConnection().prepareStatement(sql);
+        ps.setInt(1, userId);
+        ps.setInt(2, bookId);
+        ps.executeUpdate();
     }
 
     public void returnBook(int borrowingId) throws Exception {
-        String sql =
-                "UPDATE borrowings SET return_date = CURRENT_DATE WHERE id = ?";
-        try (Connection con = DBConnection.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql)) {
+        String sql = "UPDATE borrowings SET return_date = CURRENT_DATE WHERE id = ?";
+        PreparedStatement ps = DBConnection.getConnection().prepareStatement(sql);
+        ps.setInt(1, borrowingId);
+        ps.executeUpdate();
+    }
 
-            ps.setInt(1, borrowingId);
-            ps.executeUpdate();
+    public void showAllBorrowed() throws Exception {
+        String sql = """
+            SELECT u.name, b.title, c.name AS category, br.borrow_date, br.return_date
+            FROM borrowings br
+            JOIN users u ON br.user_id = u.id
+            JOIN books b ON br.book_id = b.id
+            JOIN categories c ON b.category_id = c.id
+        """;
+
+        ResultSet rs = DBConnection.getConnection()
+                .prepareStatement(sql)
+                .executeQuery();
+
+        while (rs.next()) {
+            System.out.println(
+                    rs.getString("name") + " | " +
+                            rs.getString("title") + " | " +
+                            rs.getString("category"));
         }
     }
 
-    public void showBorrowedBooks() throws Exception {
-        String sql =
-                "SELECT u.name, bk.title, b.borrow_date, b.return_date " +
-                        "FROM borrowings b " +
-                        "JOIN users u ON b.user_id = u.id " +
-                        "JOIN books bk ON b.book_id = bk.id";
+    public void showUserHistory(int userId) throws Exception {
+        String sql = "SELECT id FROM borrowings WHERE user_id = ?";
+        PreparedStatement ps = DBConnection.getConnection().prepareStatement(sql);
+        ps.setInt(1, userId);
 
-        try (Connection con = DBConnection.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
-
-            while (rs.next()) {
-                String status = rs.getDate("return_date") == null
-                        ? "NOT RETURNED"
-                        : "Returned";
-
-                System.out.println(
-                        rs.getString("name") + " borrowed \"" +
-                                rs.getString("title") + "\" on " +
-                                rs.getDate("borrow_date") +
-                                " [" + status + "]"
-                );
-            }
-        }
+        ResultSet rs = ps.executeQuery();
+        rs.next();
+        System.out.println("Borrowing ID: " + rs.getInt("id"));
     }
 }

@@ -14,7 +14,7 @@ public class Book {
     public String getTitle() { return title; }
     public String getAuthor() { return author; }
     public String getCategory() { return category; }
-    @Override //l
+    @Override 
     public String toString() {
         return id + " | " + title + " | " + author + " | Category: " + (category != null ? category : "Uncategorized");
     }

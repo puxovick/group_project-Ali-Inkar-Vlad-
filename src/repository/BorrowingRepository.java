@@ -1,57 +1,85 @@
 package repository;
-
 import config.DBConnection;
-
+import entity.BorrowingDetails;
 import java.sql.*;
-
-public class BorrowingRepository {
-
-    public void borrowBook(int userId, int bookId) throws Exception {
-        String sql =
-                "INSERT INTO borrowings(user_id, book_id, borrow_date) VALUES (?, ?, CURRENT_DATE)";
-        try (Connection con = DBConnection.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql)) {
-
+import java.util.ArrayList;
+import java.util.List;
+public class BorrowingRepository implements IBorrowingRepository {
+    @Override
+    public void borrowBook(int userId, int bookId) throws SQLException {
+        String sql = "INSERT INTO borrowings(user_id, book_id, borrow_date) VALUES (?, ?, CURRENT_DATE)";
+        try (PreparedStatement ps = DBConnection.getConnection().prepareStatement(sql)) {
             ps.setInt(1, userId);
             ps.setInt(2, bookId);
             ps.executeUpdate();
         }
     }
-
-    public void returnBook(int borrowingId) throws Exception {
-        String sql =
-                "UPDATE borrowings SET return_date = CURRENT_DATE WHERE id = ?";
-        try (Connection con = DBConnection.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql)) {
-
+    @Override
+    public void returnBook(int borrowingId) throws SQLException {
+        String sql = "UPDATE borrowings SET return_date = CURRENT_DATE WHERE id = ?";
+        try (PreparedStatement ps = DBConnection.getConnection().prepareStatement(sql)) {
             ps.setInt(1, borrowingId);
             ps.executeUpdate();
         }
     }
-
-    public void showBorrowedBooks() throws Exception {
-        String sql =
-                "SELECT u.name, bk.title, b.borrow_date, b.return_date " +
-                        "FROM borrowings b " +
-                        "JOIN users u ON b.user_id = u.id " +
-                        "JOIN books bk ON b.book_id = bk.id";
-
-        try (Connection con = DBConnection.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql);
+    @Override
+    public List<BorrowingDetails> getAllBorrowed() throws SQLException {
+        String sql = """
+            SELECT u.name, b.title, c.name AS category,
+                   br.borrow_date, br.return_date
+            FROM borrowings br
+            JOIN users u ON br.user_id = u.id
+            JOIN books b ON br.book_id = b.id
+            JOIN categories c ON b.category_id = c.id
+        """;
+        List<BorrowingDetails> details = new ArrayList<>();
+        try (PreparedStatement ps = DBConnection.getConnection().prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
-
             while (rs.next()) {
-                String status = rs.getDate("return_date") == null
-                        ? "NOT RETURNED"
-                        : "Returned";
-
-                System.out.println(
-                        rs.getString("name") + " borrowed \"" +
-                                rs.getString("title") + "\" on " +
-                                rs.getDate("borrow_date") +
-                                " [" + status + "]"
-                );
+                details.add(new BorrowingDetails(
+                        rs.getString("name"),
+                        rs.getString("title"),
+                        rs.getString("category"),
+                        rs.getDate("borrow_date"),
+                        rs.getDate("return_date")
+                ));
             }
         }
+        return details;
+    }
+    @Override
+    public List<BorrowingDetails> getUserHistory(int userId) throws SQLException {
+        String sql = """
+            SELECT u.name, b.title, c.name AS category, br.borrow_date, br.return_date
+            FROM borrowings br
+            JOIN users u ON br.user_id = u.id
+            JOIN books b ON br.book_id = b.id
+            JOIN categories c ON b.category_id = c.id
+            WHERE br.user_id = ?
+        """;
+        List<BorrowingDetails> details = new ArrayList<>();
+        try (PreparedStatement ps = DBConnection.getConnection().prepareStatement(sql)) {
+            ps.setInt(1, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    details.add(new BorrowingDetails(
+                            rs.getString("name"),
+                            rs.getString("title"),
+                            rs.getString("category"),
+                            rs.getDate("borrow_date"),
+                            rs.getDate("return_date")
+                    ));
+                }
+            }
+        }
+        return details;
+    }
+    @Deprecated
+    public void showAllBorrowed() throws Exception {
+        getAllBorrowed().forEach(System.out::println);
+    }
+    @Deprecated
+    public void showUserHistory(int userId) throws Exception {
+        getUserHistory(userId).forEach(System.out::println);
     }
 }
